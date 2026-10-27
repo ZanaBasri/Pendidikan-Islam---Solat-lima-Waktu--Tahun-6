@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lightning - Thunder Lock: Solat Lima Waktu</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- MediaPipe Hands CDN Dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: #050b14;
+            color: #ffffff;
+            overflow: hidden;
+        }
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        /* Glassmorphism UI */
+        .glass-panel {
+            background: rgba(10, 25, 47, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(56, 189, 248, 0.3);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.15);
+            transition: all 0.2s ease-in-out;
+        }
+        .glass-card.locked {
+            border-color: #f59e0b;
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.6);
+            transform: scale(1.03);
+            background: rgba(30, 41, 59, 0.95);
+        }
+        /* Neon Glow Effects */
+        .glow-text {
+            text-shadow: 0 0 10px #00f2fe, 0 0 20px #00f2fe, 0 0 30px #00f2fe;
+        }
+        .glow-gold {
+            text-shadow: 0 0 10px #fbbf24, 0 0 20px #fbbf24;
+        }
+        /* Pulse Animation */
+        @keyframes lockPulse {
+            0% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+            50% { transform: scale(1.1) rotate(180deg); opacity: 1; }
+            100% { transform: scale(1) rotate(360deg); opacity: 0.8; }
+        }
+        .lock-ring {
+            animation: lockPulse 3s linear infinite;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col justify-between items-center relative select-none">
+
+    <!-- Top Navigation Header / Status Bar -->
+    <header class="w-full max-w-6xl px-4 py-3 mt-2 z-20 flex justify-between items-center glass-panel rounded-2xl border-cyan-500/30">
+        <!-- Title & Subtitle -->
+        <div class="flex items-center gap-3">
+            <div class="p-2 bg-cyan-500/20 rounded-xl border border-cyan-400">
+                <i class="fa-solid fa-bolt-lightning text-yellow-400 text-2xl animate-pulse"></i>
+            </div>
+            <div>
+                <h1 class="font-orbitron text-lg md:text-xl font-bold tracking-wider text-cyan-400 glow-text flex items-center gap-2">
+                    THUNDER LOCK <span class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">THN 6</span>
+                </h1>
+                <p class="text-xs text-slate-300">Pendidikan Islam: Solat & Rukhsah</p>
+            </div>
+        </div>
+
+        <!-- Gameplay Stats -->
+        <div class="flex items-center gap-4 md:gap-8 font-orbitron">
+            <!-- Timer Bar -->
+            <div class="flex flex-col items-center">
+                <span class="text-xs text-slate-400">MASA</span>
+                <span id="timer-display" class="text-xl md:text-2xl font-bold text-cyan-300">15s</span>
+            </div>
+
+            <!-- Score Display -->
+            <div class="flex flex-col items-center">
+                <span class="text-xs text-slate-400">SKOR</span>
+                <span id="score-display" class="text-xl md:text-2xl font-bold text-yellow-400 glow-gold">000</span>
+            </div>
+
+            <!-- Combo Multiplier -->
+            <div class="hidden sm:flex flex-col items-center">
+                <span class="text-xs text-slate-400">COMBO</span>
+                <span id="combo-display" class="text-lg md:text-xl font-bold text-emerald-400">x1</span>
+            </div>
+
+            <!-- Lives (Hearts) -->
+            <div class="flex flex-col items-center">
+                <span class="text-xs text-slate-400">NYAWA</span>
+                <div id="lives-container" class="flex gap-1 text-red-500 text-base md:text-lg">
+                    <i class="fa-solid fa-heart"></i>
+                    <i class="fa-solid fa-heart"></i>
+                    <i class="fa-solid fa-heart"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls / Audio Buttons -->
+        <div class="flex items-center gap-2">
+            <button id="btn-sound" class="p-2.5 rounded-xl bg-slate-800 border border-slate-600 hover:border-cyan-400 text-cyan-400 transition" title="Tukar Sound">
+                <i id="icon-sound" class="fa-solid fa-volume-high"></i>
+            </button>
+            <button id="btn-guide" class="p-2.5 rounded-xl bg-slate-800 border border-slate-600 hover:border-cyan-400 text-cyan-400 transition" title="Panduan Isyarat Tangan">
+                <i class="fa-solid fa-hand"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Area -->
+    <main class="relative w-full max-w-5xl flex-1 my-2 flex flex-col justify-between items-center p-2 z-10">
+        
+        <!-- Question Box Container -->
+        <div id="question-box" class="w-full glass-panel rounded-2xl p-4 md:p-6 border-cyan-400/40 text-center relative overflow-hidden transition-all duration-300">
+            <div class="flex justify-between items-center mb-2 text-xs font-orbitron text-cyan-300">
+                <span>SOALAN <span id="question-number">1</span>/10</span>
+                <span id="gesture-status" class="px-3 py-1 rounded-full bg-slate-800/80 border border-slate-600 text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-video text-xs"></i> <span id="status-text">Memulakan Kamera...</span>
+                </span>
+            </div>
+            <h2 id="question-text" class="text-lg md:text-2xl font-bold text-white tracking-wide leading-relaxed">
+                Memuatkan Soalan...
+            </h2>
+        </div>
+
+        <!-- Main Display: Webcam Canvas Overlay and Option Cards -->
+        <div class="relative w-full flex-1 my-2 flex items-center justify-center overflow-hidden rounded-2xl border border-cyan-500/20 bg-slate-950">
+            <!-- Hidden Video Feed for MediaPipe -->
+            <video id="webcam-feed" class="hidden" playsinline></video>
+
+            <!-- Interactive Visual Canvas (Webcam Mirror, Lightning FX, Reticle, Gestures) -->
+            <canvas id="game-canvas" class="absolute inset-0 w-full h-full object-cover rounded-2xl"></canvas>
+
+            <!-- Answers Overlay Container -->
+            <div id="options-container" class="absolute inset-0 p-4 md:p-8 flex flex-col md:flex-row gap-4 justify-around items-stretch md:items-end z-20 pointer-events-none">
+                
+                <!-- Option A -->
+                <div data-option="0" class="option-card pointer-events-auto flex-1 glass-card rounded-2xl p-4 flex flex-col justify-between items-center cursor-pointer hover:border-cyan-400 transition group relative overflow-hidden">
+                    <div class="absolute top-2 left-2 w-7 h-7 rounded-lg bg-cyan-500/20 border border-cyan-400 flex items-center justify-center font-orbitron font-bold text-cyan-300 text-sm">A</div>
+                    <div class="my-auto py-2 text-center text-sm md:text-base font-semibold text-slate-100 option-text">Pilihan Jawapan A</div>
+                    <div class="w-full h-1 bg-cyan-900/50 rounded-full mt-2 overflow-hidden">
+                        <div class="lock-progress h-full w-0 bg-amber-400 transition-all duration-75"></div>
+                    </div>
+                </div>
+
+                <!-- Option B -->
+                <div data-option="1" class="option-card pointer-events-auto flex-1 glass-card rounded-2xl p-4 flex flex-col justify-between items-center cursor-pointer hover:border-cyan-400 transition group relative overflow-hidden">
+                    <div class="absolute top-2 left-2 w-7 h-7 rounded-lg bg-cyan-500/20 border border-cyan-400 flex items-center justify-center font-orbitron font-bold text-cyan-300 text-sm">B</div>
+                    <div class="my-auto py-2 text-center text-sm md:text-base font-semibold text-slate-100 option-text">Pilihan Jawapan B</div>
+                    <div class="w-full h-1 bg-cyan-900/50 rounded-full mt-2 overflow-hidden">
+                        <div class="lock-progress h-full w-0 bg-amber-400 transition-all duration-75"></div>
+                    </div>
+                </div>
+
+                <!-- Option C -->
+                <div data-option="2" class="option-card pointer-events-auto flex-1 glass-card rounded-2xl p-4 flex flex-col justify-between items-center cursor-pointer hover:border-cyan-400 transition group relative overflow-hidden">
+                    <div class="absolute top-2 left-2 w-7 h-7 rounded-lg bg-cyan-500/20 border border-cyan-400 flex items-center justify-center font-orbitron font-bold text-cyan-300 text-sm">C</div>
+                    <div class="my-auto py-2 text-center text-sm md:text-base font-semibold text-slate-100 option-text">Pilihan Jawapan C</div>
+                    <div class="w-full h-1 bg-cyan-900/50 rounded-full mt-2 overflow-hidden">
+                        <div class="lock-progress h-full w-0 bg-amber-400 transition-all duration-75"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Footer Instructions / Status -->
+        <div class="w-full py-2 px-4 glass-panel rounded-xl flex justify-between items-center text-xs text-slate-300">
+            <span class="flex items-center gap-2"><i class="fa-solid fa-hand-paper text-cyan-400"></i> Tapak Tangan: Lock Target</span>
+            <span class="flex items-center gap-2"><i class="fa-solid fa-hand-back-fist text-amber-400"></i> Penumbuk / Trik Tarik: Sambaran Petir!</span>
+            <span class="text-slate-400 hidden sm:inline">* Boleh guna Tetikus / Touch jika tiada kamera</span>
+        </div>
+    </main>
+
+    <!-- Start / Welcome Screen Modal -->
+    <div id="modal-start" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
+        <div class="max-w-xl w-full glass-panel rounded-3xl p-6 md:p-8 border-cyan-400/50 text-center flex flex-col items-center relative overflow-hidden shadow-2xl">
+            <div class="w-20 h-20 bg-cyan-500/20 rounded-full border-2 border-cyan-400 flex items-center justify-center mb-4">
+                <i class="fa-solid fa-bolt text-4xl text-amber-400 animate-bounce"></i>
+            </div>
+            <h1 class="font-orbitron text-2xl md:text-3xl font-black text-cyan-400 glow-text mb-2">LIGHTNING - THUNDER LOCK</h1>
+            <p class="text-slate-300 text-sm mb-6">Pendidikan Islam Tahun 6 (Solat Lima Waktu & Rukhsah)</p>
+
+            <div class="w-full bg-slate-900/80 rounded-2xl p-4 border border-slate-700 text-left text-sm space-y-3 mb-6">
+                <h3 class="font-orbitron font-bold text-amber-400 text-xs tracking-wider uppercase flex items-center gap-2">
+                    <i class="fa-solid fa-gamepad"></i> CARA BERMAIN (HAND GESTURE):
+                </h3>
+                <div class="flex items-start gap-3">
+                    <div class="p-2 bg-cyan-500/20 rounded-lg text-cyan-300"><i class="fa-solid fa-hand text-lg"></i></div>
+                    <div>
+                        <strong class="text-cyan-300">1. Kunci Jawapan (Lock On):</strong>
+                        <p class="text-xs text-slate-400">Buka tapak tangan dan halakan di hadapan webcam ke arah kad jawapan A, B, atau C.</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="p-2 bg-amber-500/20 rounded-lg text-amber-400"><i class="fa-solid fa-hand-back-fist text-lg"></i></div>
+                    <div>
+                        <strong class="text-amber-400">2. Sambaran Petir (Thunder Strike!):</strong>
+                        <p class="text-xs text-slate-400">Genggam penumbuk (Clench Fist) atau tarik tangan ke arah dada untuk melepaskan petir pada jawapan!</p>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btn-start-game" class="w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-orbitron font-extrabold text-lg text-slate-950 shadow-lg shadow-cyan-500/30 transition transform hover:scale-105">
+                <i class="fa-solid fa-play mr-2"></i> MULA PERMAINAN
+            </button>
+        </div>
+    </div>
+
+    <!-- Instruction Guide Modal -->
+    <div id="modal-guide" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+        <div class="max-w-md w-full glass-panel rounded-3xl p-6 border-cyan-400/50 text-center relative">
+            <button id="btn-close-guide" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <h2 class="font-orbitron text-xl font-bold text-cyan-400 mb-4">PANDUAN ISYARAT TANGAN</h2>
+            <div class="space-y-4 text-left text-sm">
+                <div class="p-3 bg-slate-900 rounded-xl border border-slate-700">
+                    <h4 class="font-bold text-cyan-300 mb-1 flex items-center gap-2"><i class="fa-solid fa-hand"></i> Open Palm (Hover/Lock)</h4>
+                    <p class="text-xs text-slate-400">Halakan retikel sasaran tangan ke atas kad pilihan jawapan. Lingkaran sasaran akan mengunci pilihan.</p>
+                </div>
+                <div class="p-3 bg-slate-900 rounded-xl border border-slate-700">
+                    <h4 class="font-bold text-amber-400 mb-1 flex items-center gap-2"><i class="fa-solid fa-hand-back-fist"></i> Clench Fist (Thunder Strike)</h4>
+                    <p class="text-xs text-slate-400">Genggam jari jemari membentuk penumbuk untuk melancarkan petir secara serentak ke pilihan terpilih.</p>
+                </div>
+                <div class="p-3 bg-slate-900 rounded-xl border border-slate-700">
+                    <h4 class="font-bold text-emerald-400 mb-1 flex items-center gap-2"><i class="fa-solid fa-mouse-pointer"></i> Alternatif Tetikus</h4>
+                    <p class="text-xs text-slate-400">Jika tiada kamera, klik terus pada kad pilihan jawapan untuk melancarkan petir.</p>
+                </div>
+            </div>
+            <button id="btn-understood" class="mt-5 w-full py-2.5 rounded-xl bg-cyan-500 font-orbitron font-bold text-slate-950 hover:bg-cyan-400">
+                FAHAM
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Over / Victory Modal -->
+    <div id="modal-result" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4">
+        <div class="max-w-lg w-full glass-panel rounded-3xl p-6 md:p-8 border-cyan-400/50 text-center flex flex-col items-center">
+            <div id="result-icon-bg" class="w-20 h-20 rounded-full flex items-center justify-center mb-4 bg-amber-500/20 border-2 border-amber-400">
+                <i id="result-icon" class="fa-solid fa-trophy text-4xl text-amber-400"></i>
+            </div>
+            <h2 id="result-title" class="font-orbitron text-2xl md:text-3xl font-black text-cyan-400 glow-text mb-1">TAHNIAH!</h2>
+            <p id="result-subtitle" class="text-slate-300 text-sm mb-6">Anda telah menyelesaikan kuiz!</p>
+
+            <div class="w-full bg-slate-900/80 rounded-2xl p-4 border border-slate-700 space-y-3 mb-6 font-orbitron">
+                <div class="flex justify-between items-center text-sm border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">JUMLAH SKOR</span>
+                    <span id="final-score" class="text-xl font-bold text-yellow-400">0</span>
+                </div>
+                <div class="flex justify-between items-center text-sm border-b border-slate-800 pb-2">
+                    <span class="text-slate-400">JAWAPAN BETUL</span>
+                    <span id="final-correct" class="text-lg font-bold text-emerald-400">0/10</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-400">GRED PERMAINAN</span>
+                    <span id="final-grade" class="text-lg font-bold text-cyan-400">CEMERLANG</span>
+                </div>
+            </div>
+
+            <button id="btn-restart-game" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-orbitron font-bold text-base text-slate-950 shadow-lg shadow-cyan-500/30 transition transform hover:scale-105">
+                <i class="fa-solid fa-rotate-right mr-2"></i> MAIN SEMULA
+            </button>
+        </div>
+    </div>
+
+    <!-- JavaScript Logic & Game Engine -->
+    <script>
+        // --- 1. GAME DATA & QUESTION BANK (Pendidikan Islam Tahun 6) ---
+        const questionBank = [
+            {
+                q: "Berapakah jumlah rakaat bagi kesemua Solat Fardhu Lima Waktu dalam sehari semalam?",
+                options: ["17 Rakaat", "15 Rakaat", "20 Rakaat"],
+                answer: 0
+            },
+            {
+                q: "Apakah hukum menunaikan Solat Lima Waktu bagi setiap umat Islam yang mukallaf?",
+                options: ["Sunat Muakkad", "Fardhu 'Ain", "Fardhu Kifayah"],
+                answer: 1
+            },
+            {
+                q: "Apakah solat fardhu yang waktunya bermula apabila terbit fajar sadiq sehingga terbit matahari?",
+                options: ["Solat Subuh", "Solat Maghrib", "Solat Isyak"],
+                answer: 0
+            },
+            {
+                q: "Apakah maksud 'Rukhsah' dalam ibadah solat bagi orang yang sakit?",
+                options: ["Pembatalan solat", "Kelonggaran / Keringanan", "Denda meninggalkan solat"],
+                answer: 1
+            },
+            {
+                q: "Bagaimanakah keutamaan cara solat bagi orang yang tidak mampu berdiri kerana sakit?",
+                options: ["Duduk, jika tidak mampu berbaring mengiring", "Mesti menunggu sihat", "Hanya dengan isyarat mata sahaja"],
+                answer: 0
+            },
+            {
+                q: "Apakah hukum menunaikan Solat Jenazah ke atas mayat seorang Muslim?",
+                options: ["Fardhu 'Ain", "Fardhu Kifayah", "Sunat Harus"],
+                answer: 1
+            },
+            {
+                q: "Berapakah bilangan takbir dalam pelaksanaan Solat Jenazah?",
+                options: ["2 Takbir", "3 Takbir", "4 Takbir"],
+                answer: 2
+            },
+            {
+                q: "Perbuatan manakah yang TIDAK terdapat dalam Solat Jenazah?",
+                options: ["Membaca Al-Fatihah", "Rukuk dan Sujud", "Berselawat ke atas Nabi"],
+                answer: 1
+            },
+            {
+                q: "Apakah waktu solat yang bermula apabila bayang-bayang objek sama panjang dengan panjang objek tersebut?",
+                options: ["Solat Zohor", "Solat Asar", "Solat Isyak"],
+                answer: 1
+            },
+            {
+                q: "Antara berikut, yang manakah merupakan Rukun Solat?",
+                options: ["Membaca Surah Al-Fatihah", "Membaca Doa Qunut", "Membaca Doa Iftitah"],
+                answer: 0
+            }
+        ];
+
+        // --- 2. AUDIO SYNTHESIZER ENGINE (Web Audio API) ---
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            toggleSound() {
+                this.muted = !this.muted;
+                return !this.muted;
+            }
+
+            playLockTone() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.1);
+            }
+
+            playThunderSound() {
+                if (this.muted || !this.ctx) return;
+                // White noise burst for thunder blast
+                const bufferSize = this.ctx.sampleRate * 0.4;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(800, this.ctx.currentTime);
+                filter.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.4);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.5, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                noise.start();
+            }
+
+            playCorrect() {
+                if (this.muted || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+                    gain.gain.setValueAtTime(0.15, now + idx * 0.08);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now + idx * 0.08);
+                    osc.stop(now + idx * 0.08 + 0.2);
+                });
+            }
+
+            playWrong() {
+                if (this.muted || !this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                osc.frequency.exponentialRampToValueAtTime(110, now + 0.3);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+        }
+
+        const soundEngine = new SoundEngine();
+
+        // --- 3. GAME STATE MANAGEMENT ---
+        const gameState = {
+            currentIndex: 0,
+            score: 0,
+            lives: 3,
+            combo: 1,
+            timer: 15,
+            timerInterval: null,
+            isLocked: false,
+            lockedOptionIndex: null,
+            lockProgress: 0,
+            isAnswering: false,
+            handPosition: { x: 0.5, y: 0.5 },
+            isFist: false,
+            lightningFxList: [],
+            correctCount: 0
+        };
+
+        // DOM Element Cache
+        const DOM = {
+            video: document.getElementById('webcam-feed'),
+            canvas: document.getElementById('game-canvas'),
+            ctx: document.getElementById('game-canvas').getContext('2d'),
+            questionNum: document.getElementById('question-number'),
+            questionText: document.getElementById('question-text'),
+            optionCards: document.querySelectorAll('.option-card'),
+            timerDisplay: document.getElementById('timer-display'),
+            scoreDisplay: document.getElementById('score-display'),
+            comboDisplay: document.getElementById('combo-display'),
+            livesContainer: document.getElementById('lives-container'),
+            statusText: document.getElementById('status-text'),
+            modalStart: document.getElementById('modal-start'),
+            modalGuide: document.getElementById('modal-guide'),
+            modalResult: document.getElementById('modal-result'),
+            btnStart: document.getElementById('btn-start-game'),
+            btnGuide: document.getElementById('btn-guide'),
+            btnCloseGuide: document.getElementById('btn-close-guide'),
+            btnUnderstood: document.getElementById('btn-understood'),
+            btnSound: document.getElementById('btn-sound'),
+            iconSound: document.getElementById('icon-sound'),
+            btnRestart: document.getElementById('btn-restart-game')
+        };
+
+        // --- 4. CANVAS RESPONSIVENESS & RENDER LOOP ---
+        function resizeCanvas() {
+            DOM.canvas.width = DOM.canvas.parentElement.clientWidth;
+            DOM.canvas.height = DOM.canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Particle / Lightning FX Class
+        class LightningBolt {
+            constructor(startX, startY, endX, endY, color = '#00f2fe') {
+                this.startX = startX;
+                this.startY = startY;
+                this.endX = endX;
+                this.endY = endY;
+                this.color = color;
+                this.life = 1.0;
+                this.segments = this.generateSegments();
+            }
+
+            generateSegments() {
+                const segs = [];
+                let currX = this.startX;
+                let currY = this.startY;
+                const steps = 12;
+
+                for (let i = 0; i < steps; i++) {
+                    const progress = i / steps;
+                    const nextX = this.startX + (this.endX - this.startX) * progress + (Math.random() - 0.5) * 40;
+                    const nextY = this.startY + (this.endY - this.startY) * progress + (Math.random() - 0.5) * 40;
+                    segs.push({ x1: currX, y1: currY, x2: nextX, y2: nextY });
+                    currX = nextX;
+                    currY = nextY;
+                }
+                segs.push({ x1: currX, y1: currY, x2: this.endX, y2: this.endY });
+                return segs;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = Math.random() * 4 + 2;
+                ctx.shadowColor = this.color;
+                ctx.shadowBlur = 15;
+
+                ctx.beginPath();
+                this.segments.forEach(s => {
+                    ctx.moveTo(s.x1, s.y1);
+                    ctx.lineTo(s.x2, s.y2);
+                });
+                ctx.stroke();
+
+                // Flash Burst Effect at End Target
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(this.endX, this.endY, Math.random() * 25 + 10, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+                this.life -= 0.08;
+            }
+        }
+
+        // Render Canvas Frame
+        function renderLoop() {
+            DOM.ctx.clearRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+
+            // 1. Draw Mirror Video Feed if Ready
+            if (DOM.video.readyState >= 2) {
+                DOM.ctx.save();
+                DOM.ctx.scale(-1, 1);
+                DOM.ctx.drawImage(DOM.video, -DOM.canvas.width, 0, DOM.canvas.width, DOM.canvas.height);
+                DOM.ctx.restore();
+
+                // Dark Overlay Layer for Neon Contrast
+                DOM.ctx.fillStyle = 'rgba(5, 11, 20, 0.55)';
+                DOM.ctx.fillRect(0, 0, DOM.canvas.width, DOM.canvas.height);
+            }
+
+            // 2. Draw Islamic / Cyber Grid Reticle Lines
+            drawCyberGrid(DOM.ctx);
+
+            // 3. Draw Hand Pointer Reticle & Lock Effect
+            const posX = gameState.handPosition.x * DOM.canvas.width;
+            const posY = gameState.handPosition.y * DOM.canvas.height;
+
+            drawHandReticle(DOM.ctx, posX, posY, gameState.isFist, gameState.isLocked);
+
+            // 4. Update & Render Lightning FX
+            for (let i = gameState.lightningFxList.length - 1; i >= 0; i--) {
+                const bolt = gameState.lightningFxList[i];
+                bolt.draw(DOM.ctx);
+                if (bolt.life <= 0) {
+                    gameState.lightningFxList.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        function drawCyberGrid(ctx) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0, 242, 254, 0.08)';
+            ctx.lineWidth = 1;
+            const gridStep = 60;
+            for (let x = 0; x < DOM.canvas.width; x += gridStep) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, DOM.canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < DOM.canvas.height; y += gridStep) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(DOM.canvas.width, y);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
+        function drawHandReticle(ctx, x, y, isFist, isLocked) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Outer Rotating Ring
+            ctx.strokeStyle = isFist ? '#f59e0b' : (isLocked ? '#fbbf24' : '#00f2fe');
+            ctx.lineWidth = isLocked ? 4 : 2;
+            ctx.shadowColor = ctx.strokeStyle;
+            ctx.shadowBlur = 12;
+
+            const radius = isLocked ? 38 : 28;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Inner Indicator Icon / Crosshair
+            ctx.fillStyle = ctx.strokeStyle;
+            ctx.beginPath();
+            ctx.arc(0, 0, isFist ? 12 : 6, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Reticle Target Lines
+            const lineLen = 10;
+            ctx.beginPath();
+            ctx.moveTo(-radius - lineLen, 0); ctx.lineTo(-radius + 4, 0);
+            ctx.moveTo(radius + lineLen, 0); ctx.lineTo(radius - 4, 0);
+            ctx.moveTo(0, -radius - lineLen); ctx.lineTo(0, -radius + 4);
+            ctx.moveTo(0, radius + lineLen); ctx.lineTo(0, radius - 4);
+            ctx.stroke();
+
+            // Lock Text Label
+            if (isLocked) {
+                ctx.font = '10px Orbitron';
+                ctx.fillStyle = '#fbbf24';
+                ctx.textAlign = 'center';
+                ctx.fillText('TARGET LOCKED', 0, -radius - 8);
+            }
+
+            ctx.restore();
+        }
+
+        // --- 5. MEDIAPIPE HANDS INTEGRATION ---
+        function initMediaPipe() {
+            const hands = new Hands({
+                locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+            });
+
+            hands.setOptions({
+                maxNumHands: 1,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.6,
+                minTrackingConfidence: 0.6
+            });
+
+            hands.onResults(onHandResults);
+
+            const camera = new Camera(DOM.video, {
+                onFrame: async () => {
+                    await hands.send({ image: DOM.video });
+                },
+                width: 640,
+                height: 480
+            });
+
+            camera.start().then(() => {
+                DOM.statusText.innerText = "Kamera Aktif";
+                DOM.statusText.parentElement.classList.replace('text-amber-400', 'text-emerald-400');
+            }).catch(err => {
+                console.warn("Kamera tidak dijumpai/dinafikan. Mod Tetikus Aktif:", err);
+                DOM.statusText.innerText = "Mod Tetikus / Sentuh";
+            });
+        }
+
+        function onHandResults(results) {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+
+                // Mirrored Horizontal Position
+                const rawX = 1.0 - landmarks[9].x; // Index 9 is Middle Finger MCP (Palm Center)
+                const rawY = landmarks[9].y;
+
+                // Smooth Hand Pointer Movement
+                gameState.handPosition.x += (rawX - gameState.handPosition.x) * 0.4;
+                gameState.handPosition.y += (rawY - gameState.handPosition.y) * 0.4;
+
+                // Gesture Detection: Open Palm vs Clench Fist
+                // Check distance between Fingertips and Wrist (Landmark 0)
+                const wrist = landmarks[0];
+                const indexTip = landmarks[8];
+                const middleTip = landmarks[12];
+                const ringTip = landmarks[16];
+                const pinkyTip = landmarks[20];
+
+                const getDist = (pt1, pt2) => Math.hypot(pt1.x - pt2.x, pt1.y - pt2.y);
+                const avgFingerDist = (
+                    getDist(indexTip, wrist) +
+                    getDist(middleTip, wrist) +
+                    getDist(ringTip, wrist) +
+                    getDist(pinkyTip, wrist)
+                ) / 4;
+
+                // Fist Threshold: Fingertips close to wrist
+                const isFistNow = avgFingerDist < 0.25;
+
+                // Trigger Thunder Strike on Clench Fist Transition
+                if (isFistNow && !gameState.isFist && gameState.isLocked && !gameState.isAnswering) {
+                    triggerThunderStrike(gameState.lockedOptionIndex);
+                }
+
+                gameState.isFist = isFistNow;
+
+                // Process Hover & Locking Target
+                if (!gameState.isAnswering) {
+                    checkCardHover();
+                }
+            }
+        }
+
+        // --- 6. GAMEPLAY LOGIC ENGINE ---
+        function startNewGame() {
+            gameState.currentIndex = 0;
+            gameState.score = 0;
+            gameState.lives = 3;
+            gameState.combo = 1;
+            gameState.correctCount = 0;
+            gameState.isAnswering = false;
+
+            updateStatsUI();
+            loadQuestion(0);
+            DOM.modalStart.classList.add('hidden');
+            DOM.modalResult.classList.add('hidden');
+
+            soundEngine.init();
+        }
+
+        function loadQuestion(index) {
+            if (index >= questionBank.length) {
+                endGame(true);
+                return;
+            }
+
+            const qData = questionBank[index];
+            DOM.questionNum.innerText = index + 1;
+            DOM.questionText.innerText = qData.q;
+
+            // Reset Option Cards
+            DOM.optionCards.forEach((card, idx) => {
+                const optionTextEl = card.querySelector('.option-text');
+                const progressEl = card.querySelector('.lock-progress');
+                optionTextEl.innerText = qData.options[idx];
+                progressEl.style.width = '0%';
+                card.className = 'option-card pointer-events-auto flex-1 glass-card rounded-2xl p-4 flex flex-col justify-between items-center cursor-pointer hover:border-cyan-400 transition group relative overflow-hidden';
+            });
+
+            gameState.isLocked = false;
+            gameState.lockedOptionIndex = null;
+            gameState.lockProgress = 0;
+            gameState.isAnswering = false;
+
+            resetTimer();
+        }
+
+        function resetTimer() {
+            clearInterval(gameState.timerInterval);
+            gameState.timer = 15;
+            DOM.timerDisplay.innerText = `${gameState.timer}s`;
+            DOM.timerDisplay.classList.remove('text-red-500', 'animate-ping');
+
+            gameState.timerInterval = setInterval(() => {
+                gameState.timer--;
+                DOM.timerDisplay.innerText = `${gameState.timer}s`;
+
+                if (gameState.timer <= 5) {
+                    DOM.timerDisplay.classList.add('text-red-500');
+                }
+
+                if (gameState.timer <= 0) {
+                    clearInterval(gameState.timerInterval);
+                    handleTimeout();
+                }
+            }, 1000);
+        }
+
+        function checkCardHover() {
+            const canvasRect = DOM.canvas.getBoundingClientRect();
+            const handScreenX = canvasRect.left + gameState.handPosition.x * canvasRect.width;
+            const handScreenY = canvasRect.top + gameState.handPosition.y * canvasRect.height;
+
+            let hoveredIdx = null;
+
+            DOM.optionCards.forEach((card, idx) => {
+                const rect = card.getBoundingClientRect();
+                if (
+                    handScreenX >= rect.left &&
+                    handScreenX <= rect.right &&
+                    handScreenY >= rect.top &&
+                    handScreenY <= rect.bottom
+                ) {
+                    hoveredIdx = idx;
+                }
+            });
+
+            if (hoveredIdx !== null) {
+                if (gameState.lockedOptionIndex === hoveredIdx) {
+                    // Accumulate Lock Progress
+                    gameState.lockProgress = Math.min(100, gameState.lockProgress + 8);
+                    if (gameState.lockProgress >= 100 && !gameState.isLocked) {
+                        gameState.isLocked = true;
+                        soundEngine.playLockTone();
+                    }
+                } else {
+                    gameState.lockedOptionIndex = hoveredIdx;
+                    gameState.lockProgress = 10;
+                    gameState.isLocked = false;
+                }
+            } else {
+                gameState.lockedOptionIndex = null;
+                gameState.lockProgress = 0;
+                gameState.isLocked = false;
+            }
+
+            // Update UI Lock Rings and Bars
+            DOM.optionCards.forEach((card, idx) => {
+                const progressEl = card.querySelector('.lock-progress');
+                if (idx === gameState.lockedOptionIndex) {
+                    progressEl.style.width = `${gameState.lockProgress}%`;
+                    if (gameState.isLocked) {
+                        card.classList.add('locked');
+                    } else {
+                        card.classList.remove('locked');
+                    }
+                } else {
+                    progressEl.style.width = '0%';
+                    card.classList.remove('locked');
+                }
+            });
+        }
+
+        function triggerThunderStrike(optionIdx) {
+            if (gameState.isAnswering || optionIdx === null) return;
+            gameState.isAnswering = true;
+            clearInterval(gameState.timerInterval);
+
+            // Generate Lightning Visual FX to Target Card
+            const card = DOM.optionCards[optionIdx];
+            const cardRect = card.getBoundingClientRect();
+            const canvasRect = DOM.canvas.getBoundingClientRect();
+
+            const targetX = cardRect.left + cardRect.width / 2 - canvasRect.left;
+            const targetY = cardRect.top + cardRect.height / 2 - canvasRect.top;
+            const startX = gameState.handPosition.x * DOM.canvas.width;
+            const startY = gameState.handPosition.y * DOM.canvas.height;
+
+            // Spawn multiple lightning bolts
+            for (let i = 0; i < 3; i++) {
+                gameState.lightningFxList.push(new LightningBolt(startX, startY, targetX, targetY));
+            }
+
+            soundEngine.playThunderSound();
+
+            // Check Answer after Strike Animation
+            setTimeout(() => {
+                const currentQuestion = questionBank[gameState.currentIndex];
+                const isCorrect = (optionIdx === currentQuestion.answer);
+
+                if (isCorrect) {
+                    card.classList.add('border-emerald-400', 'bg-emerald-950/80');
+                    soundEngine.playCorrect();
+                    gameState.score += 100 * gameState.combo;
+                    gameState.combo++;
+                    gameState.correctCount++;
+                } else {
+                    card.classList.add('border-red-500', 'bg-red-950/80');
+                    // Highlight correct answer
+                    DOM.optionCards[currentQuestion.answer].classList.add('border-emerald-400');
+                    soundEngine.playWrong();
+                    gameState.lives--;
+                    gameState.combo = 1;
+                }
+
+                updateStatsUI();
+
+                // Proceed to Next Question
+                setTimeout(() => {
+                    if (gameState.lives <= 0) {
+                        endGame(false);
+                    } else {
+                        gameState.currentIndex++;
+                        loadQuestion(gameState.currentIndex);
+                    }
+                }, 1500);
+
+            }, 250);
+        }
+
+        function handleTimeout() {
+            if (gameState.isAnswering) return;
+            gameState.isAnswering = true;
+
+            soundEngine.playWrong();
+            gameState.lives--;
+            gameState.combo = 1;
+            updateStatsUI();
+
+            // Highlight Correct Answer
+            const currentQuestion = questionBank[gameState.currentIndex];
+            DOM.optionCards[currentQuestion.answer].classList.add('border-emerald-400');
+
+            setTimeout(() => {
+                if (gameState.lives <= 0) {
+                    endGame(false);
+                } else {
+                    gameState.currentIndex++;
+                    loadQuestion(gameState.currentIndex);
+                }
+            }, 1500);
+        }
+
+        function updateStatsUI() {
+            DOM.scoreDisplay.innerText = gameState.score;
+            DOM.comboDisplay.innerText = `x${gameState.combo}`;
+
+            // Render Hearts
+            let heartsHTML = '';
+            for (let i = 0; i < 3; i++) {
+                if (i < gameState.lives) {
+                    heartsHTML += '<i class="fa-solid fa-heart text-red-500 animate-pulse"></i>';
+                } else {
+                    heartsHTML += '<i class="fa-solid fa-heart text-slate-700"></i>';
+                }
+            }
+            DOM.livesContainer.innerHTML = heartsHTML;
+        }
+
+        function endGame(isWin) {
+            clearInterval(gameState.timerInterval);
+
+            const resultTitle = document.getElementById('result-title');
+            const resultSubtitle = document.getElementById('result-subtitle');
+            const resultIcon = document.getElementById('result-icon');
+            const resultIconBg = document.getElementById('result-icon-bg');
+
+            document.getElementById('final-score').innerText = gameState.score;
+            document.getElementById('final-correct').innerText = `${gameState.correctCount}/10`;
+
+            let grade = 'LULUS';
+            if (gameState.correctCount >= 9) grade = 'CEMERLANG (MUMTAZ)';
+            else if (gameState.correctCount >= 7) grade = 'BAIK (JAYYID)';
+            else if (gameState.correctCount >= 5) grade = 'MEMUASKAN';
+            else grade = 'USAHA LAGI';
+
+            document.getElementById('final-grade').innerText = grade;
+
+            if (isWin || gameState.correctCount >= 5) {
+                resultTitle.innerText = "SYABAS & TAHNIAH!";
+                resultSubtitle.innerText = "Anda berjaya menguasai soalan ibadah solat ini!";
+                resultIcon.className = "fa-solid fa-trophy text-4xl text-amber-400";
+                resultIconBg.className = "w-20 h-20 rounded-full flex items-center justify-center mb-4 bg-amber-500/20 border-2 border-amber-400";
+            } else {
+                resultTitle.innerText = "PERMAINAN TAMAT";
+                resultSubtitle.innerText = "Jangan putus asa, mari cuba sekali lagi!";
+                resultIcon.className = "fa-solid fa-burst text-4xl text-red-400";
+                resultIconBg.className = "w-20 h-20 rounded-full flex items-center justify-center mb-4 bg-red-500/20 border-2 border-red-400";
+            }
+
+            DOM.modalResult.classList.remove('hidden');
+        }
+
+        // --- 7. EVENT LISTENERS & ALTERNATIVE MOUSE / TOUCH CONTROLS ---
+        DOM.btnStart.addEventListener('click', () => {
+            startNewGame();
+        });
+
+        DOM.btnRestart.addEventListener('click', () => {
+            startNewGame();
+        });
+
+        DOM.btnGuide.addEventListener('click', () => {
+            DOM.modalGuide.classList.remove('hidden');
+        });
+
+        DOM.btnCloseGuide.addEventListener('click', () => {
+            DOM.modalGuide.classList.add('hidden');
+        });
+
+        DOM.btnUnderstood.addEventListener('click', () => {
+            DOM.modalGuide.classList.add('hidden');
+        });
+
+        DOM.btnSound.addEventListener('click', () => {
+            const isPlaying = soundEngine.toggleSound();
+            DOM.iconSound.className = isPlaying ? "fa-solid fa-volume-high" : "fa-solid fa-volume-xmark text-red-400";
+        });
+
+        // Mouse & Touch Direct Click Fallback
+        DOM.optionCards.forEach((card) => {
+            card.addEventListener('click', () => {
+                const idx = parseInt(card.getAttribute('data-option'));
+                if (!gameState.isAnswering) {
+                    gameState.lockedOptionIndex = idx;
+                    triggerThunderStrike(idx);
+                }
+            });
+        });
+
+        // Mouse Move Listener to simulate Reticle position when hand is not present
+        window.addEventListener('mousemove', (e) => {
+            const rect = DOM.canvas.getBoundingClientRect();
+            if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                gameState.handPosition.x = (e.clientX - rect.left) / rect.width;
+                gameState.handPosition.y = (e.clientY - rect.top) / rect.height;
+                if (!gameState.isAnswering) {
+                    checkCardHover();
+                }
+            }
+        });
+
+        // --- 8. INITIALIZATION ON LOAD ---
+        window.onload = () => {
+            renderLoop();
+            initMediaPipe();
+        };
+    </script>
+</body>
+</html>
